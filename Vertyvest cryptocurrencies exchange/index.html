@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07172c" />
+  <title>Vertyvest - Login & Sign Up</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 25px;
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(5, 20, 42, 0.35),
+          rgba(7, 32, 59, 0.48)
+        ),
+        url('bg.jpeg') center center / cover no-repeat fixed;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 470px;
+      padding: 38px 35px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(9, 35, 65, 0.82),
+          rgba(5, 23, 45, 0.86)
+        );
+
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+
+      border: 1px solid rgba(255, 171, 44, 0.8);
+      border-radius: 23px;
+
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.38),
+        0 0 30px rgba(255, 153, 0, 0.12);
+
+      color: #ffffff;
+      animation: cardAppear 0.7s ease;
+    }
+
+    @keyframes cardAppear {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .brand-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+
+    .brand-logo-img {
+      max-height: 75px;
+      max-width: 180px;
+      width: auto;
+      object-fit: contain;
+      border-radius: 9px;
+    }
+
+    .brand-title {
+      text-align: center;
+      font-size: 34px;
+      font-weight: 900;
+      color: #ffae2b;
+      letter-spacing: 2.5px;
+      text-shadow: 0 3px 15px rgba(255, 166, 30, 0.25);
+    }
+
+    .brand-line {
+      width: 65px;
+      height: 3px;
+      background: linear-gradient(90deg, #ffb52e, #ff7200);
+      border-radius: 10px;
+      margin-top: 2px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #d6e3f2;
+      line-height: 1.7;
+      margin-bottom: 23px;
+    }
+
+    .bonus-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+
+      background: linear-gradient(
+        110deg,
+        rgba(255, 169, 35, 0.22),
+        rgba(255, 111, 0, 0.15)
+      );
+
+      border: 1px solid rgba(255, 177, 57, 0.75);
+      color: #ffd18a;
+
+      text-align: center;
+      padding: 15px 12px;
+      border-radius: 13px;
+
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .bonus-icon {
+      font-size: 22px;
+    }
+
+    .error-box {
+      display: none;
+      background: rgba(231, 76, 60, 0.15);
+      border: 1px solid #ef5350;
+      color: #ffaaaa;
+      padding: 12px;
+      border-radius: 9px;
+      font-size: 13px;
+      margin-bottom: 17px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      margin-bottom: 19px;
+      position: relative;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #e1eaf5;
+      margin-bottom: 9px;
+      text-align: left;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 16px 17px;
+
+      border-radius: 12px;
+      border: 1px solid rgba(100, 160, 210, 0.55);
+
+      background: rgba(0, 43, 82, 0.65);
+      color: #ffffff;
+
+      font-size: 14px;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .input-group input::placeholder {
+      color: #a9bed3;
+    }
+
+    .input-group input:focus {
+      border-color: #ffad27;
+      background: rgba(0, 55, 100, 0.8);
+      box-shadow: 0 0 14px rgba(255, 173, 39, 0.17);
+    }
+
+    .password-input {
+      padding-right: 75px !important;
+    }
+
+    .toggle-pass {
+      position: absolute;
+      right: 16px;
+      top: 42px;
+
+      color: #ffbd55;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-pass:hover {
+      color: #ffffff;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 17px 14px;
+
+      background: linear-gradient(110deg, #ffb52b, #ff7900);
+      color: #10243a;
+
+      border: none;
+      border-radius: 12px;
+
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+
+      box-shadow: 0 8px 24px rgba(255, 130, 0, 0.23);
+      transition: all 0.3s ease;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(110deg, #ffc54f, #ff8c18);
+      box-shadow: 0 12px 30px rgba(255, 145, 0, 0.35);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .switch-mode {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13.5px;
+      color: #d4e0ed;
+    }
+
+    .switch-mode span {
+      color: #ffb52b;
+      font-weight: 800;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+
+    .switch-mode span:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
+
+    .footer-note {
+      text-align: center;
+      color: #91a9c1;
+      font-size: 11px;
+      margin-top: 25px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 15px;
+        background-attachment: scroll;
+      }
+
+      .auth-card {
+        padding: 30px 21px;
+        border-radius: 19px;
+      }
+
+      .brand-title {
+        font-size: 29px;
+      }
+
+      .brand-logo-img {
+        max-height: 65px;
+      }
+
+      .subtitle {
+        font-size: 13px;
+      }
+
+      .bonus-banner {
+        font-size: 12px;
+      }
+
+      .submit-btn {
+        padding: 16px 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="auth-card">
+
+    <div class="brand-header">
+      <img
+        src="logo.jpg"
+        onerror="this.onerror=null; this.src='logo.jpeg';"
+        alt="Vertyvest Logo"
+        class="brand-logo-img"
+      />
+
+      <div class="brand-title">VERTYVEST</div>
+      <div class="brand-line"></div>
+    </div>
+
+    <p class="subtitle">
+      Welcome to Vertyvest Access your account or create a new account to start trading and building your wealth today. Join millions of users and explore our simulated digital asset trading platform
+    </p>
+
+    <div class="bonus-banner" id="bonusBanner">
+      <span class="bonus-icon">🎁</span>
+      <span>Claim your $25.00 Welcome Bonus upon sign up!</span>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <form id="authForm" onsubmit="handleAuth(event)">
+
+      <div class="input-group">
+        <label for="userIdentifier">Email or Username</label>
+        <input
+          type="text"
+          id="userIdentifier"
+          placeholder="Enter your Gmail or username"
+          autocomplete="username"
+          required
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="userPassword">Password</label>
+        <input
+          type="password"
+          id="userPassword"
+          class="password-input"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+          required
+        />
+
+        <span class="toggle-pass" onclick="togglePassword()">Show</span>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">
+        Sign Up & Claim $25 Bonus
+      </button>
+
+    </form>
+
+    <div class="switch-mode" id="switchText">
+      Already have an account?
+      <span onclick="toggleAuthMode()">Log In</span>
+    </div>
+
+    <div class="footer-note">
+      Please keep your account credentials secure.
+    </div>
+
+  </div>
+
+  <script>
+    const SUPABASE_URL =
+      'https://ltvjnbrfnompezrqcjev.supabase.co';
+
+    const SUPABASE_ANON_KEY =
+      'sb_publishable_6k13z1G-rGa0ZdUAqj-amw_VGFkZxxz';
+
+    const supabaseClient = supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+    let isSignUp = true;
+
+    function togglePassword() {
+      const passInput = document.getElementById('userPassword');
+      const toggleSpan = document.querySelector('.toggle-pass');
+
+      if (passInput.type === 'password') {
+        passInput.type = 'text';
+        toggleSpan.textContent = 'Hide';
+      } else {
+        passInput.type = 'password';
+        toggleSpan.textContent = 'Show';
+      }
+    }
+
+    function toggleAuthMode() {
+      isSignUp = !isSignUp;
+
+      const submitBtn = document.getElementById('submitBtn');
+      const switchText = document.getElementById('switchText');
+      const bonusBanner = document.getElementById('bonusBanner');
+      const errorBox = document.getElementById('errorBox');
+      const passwordInput = document.getElementById('userPassword');
+
+      errorBox.style.display = 'none';
+      passwordInput.value = '';
+
+      if (isSignUp) {
+        submitBtn.textContent = 'Sign Up & Claim $25 Bonus';
+
+        switchText.innerHTML =
+          'Already have an account? <span onclick="toggleAuthMode()">Log In</span>';
+
+        bonusBanner.style.display = 'flex';
+
+        passwordInput.autocomplete = 'new-password';
+
+      } else {
+        submitBtn.textContent = 'Log In to Dashboard';
+
+        switchText.innerHTML =
+          'Don\'t have an account? <span onclick="toggleAuthMode()">Sign Up</span>';
+
+        bonusBanner.style.display = 'none';
+
+        passwordInput.autocomplete = 'current-password';
+      }
+    }
+
+    async function handleAuth(event) {
+      event.preventDefault();
+
+      const errorDiv = document.getElementById('errorBox');
+      const submitBtn = document.getElementById('submitBtn');
+
+      errorDiv.style.display = 'none';
+
+      const inputVal =
+        document.getElementById('userIdentifier').value.trim();
+
+      const password =
+        document.getElementById('userPassword').value;
+
+      if (!inputVal || !password) {
+        errorDiv.textContent = 'Please enter your username/email and password.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Please wait...';
+
+      const isEmail = inputVal.includes('@');
+      const cleanUsername = isEmail
+        ? inputVal.split('@')[0].toLowerCase()
+        : inputVal.toLowerCase();
+
+      try {
+
+        if (isSignUp) {
+
+          const { data: existing, error: checkError } =
+            await supabaseClient
+              .from('vrt_users')
+              .select('username')
+              .eq('username', cleanUsername)
+              .limit(1);
+
+          if (checkError) throw checkError;
+
+          if (existing && existing.length > 0) {
+            throw new Error(
+              'This username already exists. Please choose another username.'
+            );
+          }
+
+          const email = isEmail
+            ? inputVal.toLowerCase()
+            : `${cleanUsername}@vertyvest.com`;
+
+          const insertData = {
+            username: cleanUsername,
+            email: email,
+            password: password,
+            balance: 25.00,
+            growth_active: false,
+            base_balance: 25.00,
+            target_balance: 25.00,
+            growth_duration_hours: 24
+          };
+
+          const { error: insertError } =
+            await supabaseClient
+              .from('vrt_users')
+              .insert([insertData]);
+
+          if (insertError) throw insertError;
+
+          localStorage.setItem(
+            'vrt_current_user',
+            JSON.stringify(insertData)
+          );
+
+          window.location.href = 'dashboard.html';
+
+        } else {
+
+          const { data: users, error: fetchError } =
+            await supabaseClient
+              .from('vrt_users')
+              .select('*')
+              .eq('username', inputVal.toLowerCase())
+              .eq('password', password)
+              .limit(1);
+
+          if (fetchError) throw fetchError;
+
+          if (!users || users.length === 0) {
+            throw new Error(
+              'Invalid username or password. Please try again.'
+            );
+          }
+
+          localStorage.setItem(
+            'vrt_current_user',
+            JSON.stringify(users[0])
+          );
+
+          window.location.href = 'dashboard.html';
+        }
+
+      } catch (err) {
+
+        errorDiv.textContent =
+          err.message || 'An error occurred. Please try again.';
+
+        errorDiv.style.display = 'block';
+
+      } finally {
+
+        submitBtn.disabled = false;
+
+        submitBtn.textContent = isSignUp
+          ? 'Sign Up & Claim $25 Bonus'
+          : 'Log In to Dashboard';
+      }
+    }
+  </script>
+
+</body>
+</html>

